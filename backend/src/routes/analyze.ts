@@ -8,8 +8,10 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import express, { type Request, type Response } from "express";
+import { MiddleWareAuthenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
+router.use(MiddleWareAuthenticateToken);
 
 router.post("/notes/:id/analyze", async (req: Request, res: Response) => {
 	try {

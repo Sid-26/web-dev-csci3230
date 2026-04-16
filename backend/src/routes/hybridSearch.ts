@@ -7,13 +7,22 @@
 // BM25 returns negative values — most negative = best match.
 // Scores are normalised to 0–1 before returning to the frontend.
 
-import express, { type Request, type Response } from "express";
+import express from "express";
 import { DB } from "../db/db.js";
+import type { AuthenticatedRequest } from "../types/user.js";
+import { MiddleWareAuthenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
+router.use(MiddleWareAuthenticateToken);
 
-router.post("/search/hybrid", (req: Request, res: Response) => {
+router.post("/search/hybrid", (req: AuthenticatedRequest, res) => {
 	const { query, topK = 8 } = req.body as { query?: string; topK?: number };
+	const userId = req.user?.ID;
+
+	if (!userId) {
+		res.status(401).json({ error: "Unauthorized" });
+		return;
+	}
 
 	if (!query || typeof query !== "string" || query.trim().length === 0) {
 		res.status(400).json({ error: "query is required" });
@@ -44,15 +53,17 @@ router.post("/search/hybrid", (req: Request, res: Response) => {
 		const rows = db
 			.prepare(
 				`SELECT
-					note_id,
-					title,
+					f.note_id,
+					f.title,
 					bm25(notes_fts, 0, 10, 1) AS rank
-				FROM notes_fts
+				FROM notes_fts f
+				JOIN DB_NOTES n ON n.ID = f.note_id
 				WHERE notes_fts MATCH ?
+				  AND n.USER_ID = ?
 				ORDER BY rank
 				LIMIT ?`,
 			)
-			.all(ftsQuery, topK) as FtsRow[];
+			.all(ftsQuery, userId, topK) as FtsRow[];
 
 		if (rows.length === 0) {
 			res.json({ query, total_searched: 0, results: [] });

@@ -7,8 +7,10 @@
 
 import express, { type Request, type Response } from "express";
 import { DB } from "../db/db.js";
+import { MiddleWareAuthenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
+router.use(MiddleWareAuthenticateToken);
 
 // ── Upsert (delete-then-insert, since FTS5 has no UPDATE) ────────────────────
 router.post("/notes/:id/index", (req: Request, res: Response) => {

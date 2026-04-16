@@ -240,7 +240,36 @@ watch(editorRef, (el) => {
 
 // Processes a plain-text line into HTML with inline markdown rendered and md-syntax marker spans preserved for non-destructive editing.
 function processLineContent(text) {
-  // Bold-italic 
+  const codeBlocks = [];
+  const urls = [];
+  const rawUrls = [];
+
+  // Step 1: extract inline code and replace with placeholders
+  text = text.replace(/`([^`]+?)`/g, (_, c) => {
+    const placeholder = `@@CODE${codeBlocks.length}@@`;
+    // Store literal content inside code
+    codeBlocks.push(c);
+    return placeholder;
+  });
+
+  // Markdown links: [text](url)
+  text = text.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+|#[^\s)]+)\)/g,
+    (_, c, c1) => {
+      const placeholder = `@@URL${urls.length}@@`;
+      urls.push([c, c1]);
+      return placeholder;
+    },
+  );
+
+  // Raw URLs (avoid double-wrapping links already handled above)
+  text = text.replace(/(https?:\/\/[^\s<]+)/g, (_, c) => {
+    const placeholder = `@@RAW_URL${rawUrls.length}@@`;
+    rawUrls.push(c);
+    return placeholder;
+  });
+
+  // Bold-italic
   text = text.replace(
     /\*\*\*([^*<>]+?)\*\*\*/g,
     (_, c) =>
@@ -268,22 +297,6 @@ function processLineContent(text) {
       `<s><span class="md-syntax" contenteditable="false">~~</span>${c}<span class="md-syntax" contenteditable="false">~~</span></s>`,
   );
 
-  // Inline code
-  text = text.replace(
-    /`([^`<>]+?)`/g,
-    (_, c) =>
-      `<code><span class="md-syntax" contenteditable="false">\`</span>${c}<span class="md-syntax" contenteditable="false">\`</span></code>`,
-  );
-
-  // Markdown links [text](url)
-  text = text.replace(
-    /\[([^\]]+?)\]\(([^)]+?)\)/g,
-    (_, label, raw) => {
-      const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-      return `<a href="${url}" class="md-link" target="_blank" rel="noopener noreferrer" title="${url}">${label}</a>`;
-    },
-  );
-
   // Tags (#tagname — not # alone or # followed by space)
   text = text.replace(
     /#([a-zA-Z0-9]{1,30})/g,
@@ -304,33 +317,56 @@ function processLineContent(text) {
     text += "\u200B";
   }
   // only for read only mode since live edit mode needs more complicated stuff to have this work
-  if (props.isReadOnly) {
-    // Markdown links: [text](url)
-    text = text.replace(
-      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-      `<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>`,
-    );
 
-    // Raw URLs (avoid double-wrapping links already handled above)
-    text = text.replace(
-      /(^|[^">])(https?:\/\/[^\s<]+)/g,
-      (match, prefix, url) => {
-        return `${prefix}<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-      },
-    );
-  }
+  text = text.replace(/@@CODE(\d+)@@/g, (_, index) => {
+    const c = codeBlocks[index];
+    return `<code><span class="md-syntax" contenteditable="false">\`</span>${c}<span class="md-syntax" contenteditable="false">\`</span></code>`;
+  });
+
+  text = text.replace(/@@URL(\d+)@@/g, (_, index) => {
+    const c = urls[index];
+    const cls = c[1].startsWith("#") ? "md_url_ref" : "md_url";
+    return `<a href="${c[1]}" class="${cls} md-link" target="_blank" rel="noopener noreferrer">${c[0]}</a>`;
+  });
+
+  text = text.replace(/@@RAW_URL(\d+)@@/g, (_, index) => {
+    const c = rawUrls[index];
+    return `<a href="${c}" class="md_raw_url md-link" target="_blank" rel="noopener noreferrer">${c}</a>`;
+  });
 
   return text;
 }
 
+function generateId(text) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "") // remove non-word characters except spaces and hyphens
+    .replace(/\s+/g, "-"); // replace spaces with hyphens
+}
 function contentToHtml(content) {
   if (!content) return "<p><br></p>";
   const lines = content.split("\n");
   const result = [];
   let i = 0;
+  let isCodeBlock = false;
+  let codeBlockStr = "";
 
   while (i < lines.length) {
     const line = lines[i];
+
+    if (isCodeBlock) {
+      if (line.startsWith("```")) {
+        isCodeBlock = false;
+
+        result.push(`<pre class="font-mono">${codeBlockStr}</pre>`);
+        i++;
+        continue;
+      }
+      codeBlockStr += line + "\n";
+      i++;
+      continue;
+    }
 
     if (!props.livePreview) {
       i++;
@@ -364,23 +400,33 @@ function contentToHtml(content) {
       continue;
     }
 
+    if (line.startsWith("```")) {
+      codeBlockStr = "";
+      isCodeBlock = true;
+      i++;
+      continue;
+    }
+
     if (line.startsWith("### ")) {
+      const id = generateId(line.slice(3));
       result.push(
-        `<h3><span class="md-syntax" contenteditable="false">### </span>${processLineContent(line.slice(4))}</h3>`,
+        `<h3 id=${id}><span class="md-syntax" contenteditable="false">### </span>${processLineContent(line.slice(4))}</h3>`,
       );
       i++;
       continue;
     }
     if (line.startsWith("## ")) {
+      const id = generateId(line.slice(3));
       result.push(
-        `<h2><span class="md-syntax" contenteditable="false">## </span>${processLineContent(line.slice(3))}</h2>`,
+        `<h2 id=${id}><span class="md-syntax" contenteditable="false">## </span>${processLineContent(line.slice(3))}</h2>`,
       );
       i++;
       continue;
     }
     if (line.startsWith("# ")) {
+      const id = generateId(line.slice(3));
       result.push(
-        `<h1><span class="md-syntax" contenteditable="false"># </span>${processLineContent(line.slice(2))}</h1>`,
+        `<h1 id=${id}><span class="md-syntax" contenteditable="false"># </span>${processLineContent(line.slice(2))}</h1>`,
       );
       i++;
       continue;
@@ -506,7 +552,16 @@ function serializeInnerMarkdown(node) {
       } else if (t === "code") {
         result += `\`${serializeInnerMarkdown(child)}\``;
       } else if (t === "a" && child.href) {
-        result += `[${serializeInnerMarkdown(child)}](${child.getAttribute("href")})`;
+        if (child.classList.contains("md_url_ref")) {
+          const hash = new URL(child.href).hash || "";
+          result += `[${child.textContent}](${hash})`;
+        } else if (child.classList.contains("md_url")) {
+          result += `[${child.textContent}](${child.href})`;
+        } else if (child.classList.contains("md_raw_url")) {
+          result += `${child.href}`;
+        } else {
+          result += `[${serializeInnerMarkdown(child)}](${child.getAttribute("href")})`;
+        }
       } else if (t === "br") {
       } else {
         result += serializeInnerMarkdown(child);
@@ -532,13 +587,14 @@ function htmlToContent(html) {
       // Check the first md syntax span to determine if this was typed as HTML or markdown
       const firstMarker = node.querySelector(".md-syntax")?.textContent || "";
       if (firstMarker.startsWith("<")) {
-        // HTML tag style 
+        // HTML tag style
         lines.push(`<${tag}>${rich}</${tag}>`);
       } else {
-        // Markdown style 
+        // Markdown style
         lines.push("#".repeat(parseInt(tag[1])) + " " + rich);
       }
     } else if (tag === "blockquote") lines.push(`> ${rich}`);
+    else if (tag === "pre") lines.push("```\n" + text + "\n```");
     else if (tag === "hr") lines.push("---");
     else if (tag === "li") lines.push(`- ${rich}`);
     else if (tag === "ul" || tag === "ol") {
@@ -1117,7 +1173,7 @@ function checkAndRenderInlinePattern() {
   }
 }
 
-//  Cursor-line tracking for Obsidian-style marker visibility 
+//  Cursor-line tracking for Obsidian-style marker visibility
 
 function updateCursorLine() {
   if (props.isReadOnly) return;
@@ -1174,7 +1230,7 @@ onUnmounted(() => {
   document.removeEventListener("selectionchange", handleSelectionChange);
 });
 
-// Tag autocomplete 
+// Tag autocomplete
 const tagOpen = ref(false);
 const tagPos = ref({ top: 0, left: 0 });
 const tagResults = ref([]);
@@ -1372,7 +1428,7 @@ function renderTagsInDOM() {
   }
 }
 
-// Wiki-link autocomplete 
+// Wiki-link autocomplete
 const wikiOpen = ref(false);
 const wikiPos = ref({ top: 0, left: 0 });
 const wikiResults = ref([]);
@@ -1474,6 +1530,24 @@ function selectWikiNote(note) {
 }
 
 async function handleWikiLinkClick(e) {
+  if (event.target.tagName === "A") {
+    const href = event.target.getAttribute("href");
+    if (href && href.startsWith("#")) {
+      event.preventDefault(); // Prevent default jump
+
+      const targetId = href.slice(1); // Remove the '#'
+      const targetElement = document.getElementById(targetId);
+
+      if (targetElement) {
+        // Scroll smoothly to the element
+        targetElement.scrollIntoView({ behavior: "smooth" });
+        return;
+      } else {
+        console.warn(`No element found with id="${targetId}"`);
+      }
+    }
+  }
+
   const link = e.target.closest("a.md-link");
   if (link) {
     e.preventDefault();
@@ -1681,6 +1755,14 @@ defineExpose({ applyFormat, editorRef });
   padding-left: 12px;
   margin: 8px 0;
   color: var(--text-dim);
+}
+.editor-area :deep(pre) {
+  background: var(--surface-hover);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  overflow-x: scroll;
 }
 .editor-area :deep(code) {
   background: var(--surface-hover);

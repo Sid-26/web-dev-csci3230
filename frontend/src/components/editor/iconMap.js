@@ -1,5 +1,5 @@
 /**
- * iconMap.js a registry of the 60 pickable note icons.
+ * iconMap.js is a registry of the 60 pickable note icons.
  * Maps a stable string key to its Lucide component.
  * When adding new icons, append to this file — no other file needs to change.
  */

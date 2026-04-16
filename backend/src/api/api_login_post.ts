@@ -30,7 +30,7 @@ export const ApiPostLogin = (
 	const result = db.GetUser(username, password);
 
 	if (result.error !== null) {
-		console.error(`error creating user: ${result.error}`);
+		console.error(`error logging in: ${result.error}`);
 		res.status(500);
 		res.send(`Internal server error`);
 	} else {

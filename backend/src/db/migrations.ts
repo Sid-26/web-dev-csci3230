@@ -52,7 +52,7 @@ const migrate_1: MigrationFunc = (
 					`);`,
 			);
 
-			// just copy paste this at the end of every transaction in ever migration function
+			// just copy paste this at the end of every transaction in every migration function
 			db.prepare(
 				"UPDATE DB_VERSION SET VERSION = ? WHERE VERSION = ?",
 			).run(toVersion, fromVersion);

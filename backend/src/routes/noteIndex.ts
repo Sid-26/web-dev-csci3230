@@ -4,11 +4,12 @@
 
 import express, { type Request, type Response } from "express";
 import { DB } from "../db/db.js";
+import { MiddleWareAuthenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
 // delete then insert, since FTS5 has no UPDATE
-router.post("/notes/:id/index", (req: Request, res: Response) => {
+router.post("/notes/:id/index", MiddleWareAuthenticateToken, (req: Request, res: Response) => {
 	const { id } = req.params;
 	const { title = "", content = "" } = req.body as {
 		title?: string;
@@ -34,7 +35,7 @@ router.post("/notes/:id/index", (req: Request, res: Response) => {
 });
 
 // delete from index
-router.delete("/notes/:id/index", (req: Request, res: Response) => {
+router.delete("/notes/:id/index", MiddleWareAuthenticateToken, (req: Request, res: Response) => {
 	const { id } = req.params;
 	const db = DB.Instance().DB();
 

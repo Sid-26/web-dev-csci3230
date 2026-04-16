@@ -276,7 +276,16 @@ function processLineContent(text) {
       `<code><span class="md-syntax" contenteditable="false">\`</span>${c}<span class="md-syntax" contenteditable="false">\`</span></code>`,
   );
 
-  // 6. Markdown links [text](url)
+  // 6. Images ![alt](url)
+  text = text.replace(
+    /!\[([^\]]*?)\]\(([^)]+?)\)/g,
+    (_, alt, src) => {
+      const url = /^https?:\/\//i.test(src) ? src : `https://${src}`;
+      return `<img src="${url}" alt="${alt}" class="md-image" contenteditable="false" />`;
+    },
+  );
+
+  // 7. Markdown links [text](url)
   text = text.replace(
     /\[([^\]]+?)\]\(([^)]+?)\)/g,
     (_, label, raw) => {
@@ -285,14 +294,14 @@ function processLineContent(text) {
     },
   );
 
-  // 7. Tags (#tagname — not # alone or # followed by space)
+  // 8. Tags (#tagname — not # alone or # followed by space)
   text = text.replace(
     /#([a-zA-Z0-9]{1,30})/g,
     (_, name) =>
       `<span class="tag-link" contenteditable="false" data-tag="${name}">#${name}</span>`,
   );
 
-  // 8. Wiki-links (skip self-references)
+  // 9. Wiki-links (skip self-references)
   text = text.replace(/\[\[([^\]]+)\]\]/g, (_, name) => {
     if (name.toLowerCase() === props.file?.name?.toLowerCase())
       return `[[${name}]]`;
@@ -509,6 +518,8 @@ function serializeInnerMarkdown(node) {
         result += `~~${serializeInnerMarkdown(child)}~~`;
       } else if (t === "code") {
         result += `\`${serializeInnerMarkdown(child)}\``;
+      } else if (t === "img") {
+        result += `![${child.getAttribute("alt") || ""}](${child.getAttribute("src")})`;
       } else if (t === "a" && child.href) {
         result += `[${serializeInnerMarkdown(child)}](${child.getAttribute("href")})`;
       } else if (t === "br") {
@@ -1873,6 +1884,15 @@ defineExpose({ applyFormat, editorRef });
 .editor-area :deep(.wiki-link:hover) {
   background: color-mix(in srgb, var(--label-to) 22%, transparent);
   text-decoration: underline;
+}
+
+/* Inline images in editor */
+.editor-area :deep(img.md-image) {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 6px;
+  margin: 4px 0;
+  display: block;
 }
 
 /* Hyperlinks in editor */

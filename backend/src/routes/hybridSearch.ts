@@ -11,9 +11,8 @@ import type { AuthenticatedRequest } from "../types/user.js";
 import { MiddleWareAuthenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
-router.use(MiddleWareAuthenticateToken);
 
-router.post("/search/hybrid", (req: AuthenticatedRequest, res) => {
+router.post("/search/hybrid", MiddleWareAuthenticateToken, (req: AuthenticatedRequest, res) => {
 	const { query, topK = 8 } = req.body as { query?: string; topK?: number };
 	const userId = req.user?.ID;
 
@@ -30,7 +29,7 @@ router.post("/search/hybrid", (req: AuthenticatedRequest, res) => {
 	const db = DB.Instance().DB();
 
 	// Strip FTS5 special characters to prevent query syntax errors
-	const sanitized = query.trim().replace(/["'*()^:]/g, " ");
+	const sanitized = query.trim().replace(/["'*()^:,]/g, " ");
 	const terms = sanitized.split(/\s+/).filter((t) => t.length > 0);
 
 	if (terms.length === 0) {

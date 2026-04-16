@@ -363,9 +363,10 @@ export async function exportFolderAsZip(id = null, title = null) {
  * Analyze a note with Gemini — returns suggested tags from the existing tag pool.
  */
 export async function analyzeNote(id, content, existingTags = []) {
+  const { authHeaders } = useAuth();
   const res = await fetch(`${API_BASE}/notes/${id}/analyze`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ content, tags: existingTags }),
   });
   if (!res.ok) throw new Error("Failed to analyze note");
@@ -382,9 +383,10 @@ export async function analyzeNote(id, content, existingTags = []) {
  * Returns: { query, total_searched, results: [{ id, title, tags, score }] }
  */
 export async function hybridSearch(query, topK = 8) {
+  const { authHeaders } = useAuth();
   const res = await fetch(`${API_BASE}/search/hybrid`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ query, topK }),
   });
   if (!res.ok) throw new Error("Hybrid search failed");
@@ -402,9 +404,10 @@ export async function indexNote(
   id,
   { title = "", tags = "", content = "" } = {},
 ) {
+  const { authHeaders } = useAuth();
   const res = await fetch(`${API_BASE}/notes/${id}/index`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ title, tags, content }),
   });
   if (!res.ok) throw new Error("Failed to index note");
@@ -415,8 +418,10 @@ export async function indexNote(
  * Remove a note from the FTS5 index.
  */
 export async function deleteNoteIndex(id) {
+  const { authHeaders } = useAuth();
   const res = await fetch(`${API_BASE}/notes/${id}/index`, {
     method: "DELETE",
+    headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to remove note from index");
   return res.json();

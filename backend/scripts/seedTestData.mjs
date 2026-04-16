@@ -1265,7 +1265,7 @@ async function main() {
 			title: note.title,
 			content: note.content,
 			tags: note.tags.join(" "),
-		});
+		}, token);
 	}
 
 	// 8. Create folders (idempotent)

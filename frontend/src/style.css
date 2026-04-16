@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
-/* ── Register CSS vars as Tailwind colors ──────────────────── */
-/* Allows e.g. text-c-text, bg-c-surface instead of text-[var(--text)] */
+/* Register CSS vars as Tailwind colors */
 @theme {
   --color-c-bg: var(--bg);
   --color-c-surface: var(--surface);
@@ -17,7 +16,7 @@
   --color-c-label-to: var(--label-to);
 }
 
-/* ── Theme tokens ───────────────────────────────────────────── */
+/* Theme tokens */
 :root {
   --bg: #0a0d14;
   --surface: #161b27;

@@ -37,4 +37,4 @@
 
 - As a user, I want to search my notes using keywords so that I can find relevant notes quickly
 - As a user, I want to see a graph of how my notes connect so that I can discover relationships
-- As a user, I want to see my mood over time so that I can reflect on my writing
+- As a user, I want to see my writing activity over time so that I can reflect on my writing habits

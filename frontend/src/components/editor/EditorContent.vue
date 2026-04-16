@@ -10,6 +10,7 @@
         <input
           class="note-title"
           :value="file.name"
+          :readonly="isReadOnly"
           @input="$emit('rename', file.id, $event.target.value, 'file')"
           @keydown.enter.prevent="focusEditor"
         />
@@ -77,12 +78,13 @@
     <div
       ref="editorRef"
       class="editor-area"
-      contenteditable="true"
+      :contenteditable="!isReadOnly"
       spellcheck="true"
       @input="handleInput"
       @keydown="handleKeydown"
       @click="handleWikiLinkClick"
       @blur="handleEditorBlur"
+      @scroll="handleScroll"
     />
   </div>
   <div v-else-if="!loading" class="empty-state">
@@ -109,9 +111,17 @@ import IconPicker from "./IconPicker.vue";
 const props = defineProps({
   file: { type: Object, default: null },
   livePreview: { type: Boolean, default: true },
+  isReadOnly: { type: Boolean, default: false },
+  readOnlyContent: { type: String, default: "" },
 });
 
-const emit = defineEmits(["update", "rename", "createFirst", "tag-click"]);
+const emit = defineEmits([
+  "update",
+  "scroll",
+  "rename",
+  "createFirst",
+  "tag-click",
+]);
 
 const {
   updateItemIcon,
@@ -128,6 +138,17 @@ const pickerOpen = ref(false);
 const pickerPos = ref({ top: 0, left: 0 });
 
 const noteIcon = computed(() => resolveIcon(props.file?.icon || "FileText"));
+
+function handleScroll() {
+  const el = editorRef.value;
+  if (!el) return;
+
+  emit("scroll", {
+    scrollTop: el.scrollTop,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
+  });
+}
 
 function openPicker(e) {
   const rect = e.currentTarget.getBoundingClientRect();
@@ -164,6 +185,22 @@ function formatDate(dateStr) {
 }
 
 // When active file changes, load its content into the editor
+
+watch(
+  () => props.readOnlyContent,
+  (newVal) => {
+    if (!editorRef.value || !props.isReadOnly) return;
+
+    isUpdatingFromProp = true;
+    editorRef.value.innerHTML = contentToHtml(newVal);
+    renderWikiLinksInDOM();
+    nextTick(() => {
+      isUpdatingFromProp = false;
+    });
+  },
+  { immediate: true },
+);
+
 watch(
   [() => props.file?.id, () => props.livePreview],
   () => {
@@ -201,69 +238,135 @@ watch(editorRef, (el) => {
   }
 });
 
-// Processes a plain-text line into HTML with inline markdown rendered
-// and md-syntax marker spans preserved for non-destructive editing.
+// Processes a plain-text line into HTML with inline markdown rendered and md-syntax marker spans preserved for non-destructive editing.
 function processLineContent(text) {
-  // 1. Bold-italic (*** must come before ** and *)
+  const codeBlocks = [];
+  const urls = [];
+  const rawUrls = [];
+
+  // Step 1: extract inline code and replace with placeholders
+  text = text.replace(/`([^`]+?)`/g, (_, c) => {
+    const placeholder = `@@CODE${codeBlocks.length}@@`;
+    // Store literal content inside code
+    codeBlocks.push(c);
+    return placeholder;
+  });
+
+  // Markdown links: [text](url)
+  text = text.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+|#[^\s)]+)\)/g,
+    (_, c, c1) => {
+      const placeholder = `@@URL${urls.length}@@`;
+      urls.push([c, c1]);
+      return placeholder;
+    },
+  );
+
+  // Raw URLs (avoid double-wrapping links already handled above)
+  text = text.replace(/(https?:\/\/[^\s<]+)/g, (_, c) => {
+    const placeholder = `@@RAW_URL${rawUrls.length}@@`;
+    rawUrls.push(c);
+    return placeholder;
+  });
+
+  // Bold-italic
   text = text.replace(
     /\*\*\*([^*<>]+?)\*\*\*/g,
     (_, c) =>
       `<strong><em><span class="md-syntax" contenteditable="false">***</span>${c}<span class="md-syntax" contenteditable="false">***</span></em></strong>`,
   );
 
-  // 2. Bold
+  // Bold
   text = text.replace(
     /\*\*([^*<>]+?)\*\*/g,
     (_, c) =>
       `<strong><span class="md-syntax" contenteditable="false">**</span>${c}<span class="md-syntax" contenteditable="false">**</span></strong>`,
   );
 
-  // 3. Italic (single *, not preceded/followed by *)
+  // Italic
   text = text.replace(
     /(?<!\*)\*([^*<>\n]+?)\*(?!\*)/g,
     (_, c) =>
       `<em><span class="md-syntax" contenteditable="false">*</span>${c}<span class="md-syntax" contenteditable="false">*</span></em>`,
   );
 
-  // 4. Strikethrough
+  // Strikethrough
   text = text.replace(
     /~~([^~<>]+?)~~/g,
     (_, c) =>
       `<s><span class="md-syntax" contenteditable="false">~~</span>${c}<span class="md-syntax" contenteditable="false">~~</span></s>`,
   );
 
-  // 5. Inline code
-  text = text.replace(
-    /`([^`<>]+?)`/g,
-    (_, c) =>
-      `<code><span class="md-syntax" contenteditable="false">\`</span>${c}<span class="md-syntax" contenteditable="false">\`</span></code>`,
-  );
-
-  // 6. Tags (#tagname — not # alone or # followed by space)
+  // Tags (#tagname — not # alone or # followed by space)
   text = text.replace(
     /#([a-zA-Z0-9]{1,30})/g,
     (_, name) =>
       `<span class="tag-link" contenteditable="false" data-tag="${name}">#${name}</span>`,
   );
 
-  // 7. Wiki-links (skip self-references)
+  // Wiki-links (skip self-references)
   text = text.replace(/\[\[([^\]]+)\]\]/g, (_, name) => {
     if (name.toLowerCase() === props.file?.name?.toLowerCase())
       return `[[${name}]]`;
     return `<span class="wiki-link" contenteditable="false" data-name="${name}">${name}</span>`;
   });
 
+  // Ensures the browser can let you type after a closing italic element: without this, Enter after a preview mode does nothing
+
+  if (/<\/(em|strong|s|code|span)>$/.test(text)) {
+    text += "\u200B";
+  }
+  // only for read only mode since live edit mode needs more complicated stuff to have this work
+
+  text = text.replace(/@@CODE(\d+)@@/g, (_, index) => {
+    const c = codeBlocks[index];
+    return `<code><span class="md-syntax" contenteditable="false">\`</span>${c}<span class="md-syntax" contenteditable="false">\`</span></code>`;
+  });
+
+  text = text.replace(/@@URL(\d+)@@/g, (_, index) => {
+    const c = urls[index];
+    const cls = c[1].startsWith("#") ? "md_url_ref" : "md_url";
+    return `<a href="${c[1]}" class="${cls} md-link" target="_blank" rel="noopener noreferrer">${c[0]}</a>`;
+  });
+
+  text = text.replace(/@@RAW_URL(\d+)@@/g, (_, index) => {
+    const c = rawUrls[index];
+    return `<a href="${c}" class="md_raw_url md-link" target="_blank" rel="noopener noreferrer">${c}</a>`;
+  });
+
   return text;
 }
 
+function generateId(text) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "") // remove non-word characters except spaces and hyphens
+    .replace(/\s+/g, "-"); // replace spaces with hyphens
+}
 function contentToHtml(content) {
   if (!content) return "<p><br></p>";
   const lines = content.split("\n");
   const result = [];
   let i = 0;
+  let isCodeBlock = false;
+  let codeBlockStr = "";
 
   while (i < lines.length) {
     const line = lines[i];
+
+    if (isCodeBlock) {
+      if (line.startsWith("```")) {
+        isCodeBlock = false;
+
+        result.push(`<pre class="font-mono">${codeBlockStr}</pre>`);
+        i++;
+        continue;
+      }
+      codeBlockStr += line + "\n";
+      i++;
+      continue;
+    }
 
     if (!props.livePreview) {
       i++;
@@ -274,7 +377,7 @@ function contentToHtml(content) {
       }
       continue;
     }
-    // GFM table: collect consecutive pipe-delimited rows
+    // GFM table: collect consecutive pipe delimited rows
     if (/^\|.+\|$/.test(line.trim())) {
       const tableLines = [];
       while (i < lines.length && /^\|.+\|$/.test(lines[i].trim())) {
@@ -285,7 +388,7 @@ function contentToHtml(content) {
       continue;
     }
 
-    // HTML heading tags — preserve as <h1>/<h2>/<h3> markers (not converted to #)
+    // HTML heading tags, preserve as <h1>/<h2>/<h3> markers not converted to markdown type
     const htmlHeadingMatch = line.match(/^<(h[123])>(.*)<\/\1>$/);
     if (htmlHeadingMatch) {
       const tag = htmlHeadingMatch[1];
@@ -297,23 +400,33 @@ function contentToHtml(content) {
       continue;
     }
 
+    if (line.startsWith("```")) {
+      codeBlockStr = "";
+      isCodeBlock = true;
+      i++;
+      continue;
+    }
+
     if (line.startsWith("### ")) {
+      const id = generateId(line.slice(3));
       result.push(
-        `<h3><span class="md-syntax" contenteditable="false">### </span>${processLineContent(line.slice(4))}</h3>`,
+        `<h3 id=${id}><span class="md-syntax" contenteditable="false">### </span>${processLineContent(line.slice(4))}</h3>`,
       );
       i++;
       continue;
     }
     if (line.startsWith("## ")) {
+      const id = generateId(line.slice(3));
       result.push(
-        `<h2><span class="md-syntax" contenteditable="false">## </span>${processLineContent(line.slice(3))}</h2>`,
+        `<h2 id=${id}><span class="md-syntax" contenteditable="false">## </span>${processLineContent(line.slice(3))}</h2>`,
       );
       i++;
       continue;
     }
     if (line.startsWith("# ")) {
+      const id = generateId(line.slice(3));
       result.push(
-        `<h1><span class="md-syntax" contenteditable="false"># </span>${processLineContent(line.slice(2))}</h1>`,
+        `<h1 id=${id}><span class="md-syntax" contenteditable="false"># </span>${processLineContent(line.slice(2))}</h1>`,
       );
       i++;
       continue;
@@ -362,11 +475,11 @@ function contentToHtml(content) {
   return result.join("");
 }
 
-// Renders an array of GFM table lines into an HTML <table> element string.
+// Renders an array of GFM table lines into an HTML table element string
 function renderMarkdownTable(lines) {
   if (!lines.length) return "";
 
-  // Separator lines look like |---|---| — filter them out when building rows
+  // Separator lines look like |---|---| filter them out when building rows
   const isSeparator = (l) => /^\|[\s\-:|]+\|$/.test(l.trim());
 
   const rows = lines
@@ -405,8 +518,7 @@ function renderMarkdownTable(lines) {
   return html + "</table>";
 }
 
-// Serializes a node's content to markdown, preserving inline formatting
-// and [[wiki-link]] spans.
+// Serializes a node's content to markdown, preserving inline formatting and [[wiki-link]] spans
 function serializeInnerMarkdown(node) {
   let result = "";
   for (const child of node.childNodes) {
@@ -419,7 +531,6 @@ function serializeInnerMarkdown(node) {
       } else if (t === "span" && child.classList.contains("wiki-link")) {
         result += `[[${child.dataset.name || child.textContent}]]`;
       } else if (t === "span" && child.classList.contains("md-syntax")) {
-        // Skip — marker is re-added by the serializer wrapper
       } else if (t === "strong" || t === "b") {
         const inner = serializeInnerMarkdown(child);
         // Check if it also wraps <em> for bold-italic
@@ -440,8 +551,18 @@ function serializeInnerMarkdown(node) {
         result += `~~${serializeInnerMarkdown(child)}~~`;
       } else if (t === "code") {
         result += `\`${serializeInnerMarkdown(child)}\``;
+      } else if (t === "a" && child.href) {
+        if (child.classList.contains("md_url_ref")) {
+          const hash = new URL(child.href).hash || "";
+          result += `[${child.textContent}](${hash})`;
+        } else if (child.classList.contains("md_url")) {
+          result += `[${child.textContent}](${child.href})`;
+        } else if (child.classList.contains("md_raw_url")) {
+          result += `${child.href}`;
+        } else {
+          result += `[${serializeInnerMarkdown(child)}](${child.getAttribute("href")})`;
+        }
       } else if (t === "br") {
-        // ignore
       } else {
         result += serializeInnerMarkdown(child);
       }
@@ -452,7 +573,7 @@ function serializeInnerMarkdown(node) {
 
 function htmlToContent(html) {
   const tempDiv = document.createElement("div");
-  tempDiv.innerHTML = html;
+  tempDiv.innerHTML = html.replace(/\u200B/g, "");
   const lines = [];
   for (const node of tempDiv.childNodes) {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -463,16 +584,17 @@ function htmlToContent(html) {
     const text = node.textContent || "";
     const rich = serializeInnerMarkdown(node);
     if (tag === "h1" || tag === "h2" || tag === "h3") {
-      // Check the first md-syntax span to determine if this was typed as HTML or markdown
+      // Check the first md syntax span to determine if this was typed as HTML or markdown
       const firstMarker = node.querySelector(".md-syntax")?.textContent || "";
       if (firstMarker.startsWith("<")) {
-        // HTML-tag style — preserve as <h1>content</h1>
+        // HTML tag style
         lines.push(`<${tag}>${rich}</${tag}>`);
       } else {
-        // Markdown style — serialize as # content
+        // Markdown style
         lines.push("#".repeat(parseInt(tag[1])) + " " + rich);
       }
     } else if (tag === "blockquote") lines.push(`> ${rich}`);
+    else if (tag === "pre") lines.push("```\n" + text + "\n```");
     else if (tag === "hr") lines.push("---");
     else if (tag === "li") lines.push(`- ${rich}`);
     else if (tag === "ul" || tag === "ol") {
@@ -491,7 +613,7 @@ function htmlToContent(html) {
   return lines.join("\n");
 }
 
-// Serializes a <table> DOM node back to GFM markdown table syntax.
+// Serializes a <table> DOM node back to GFM markdown table syntax
 function serializeTable(tableNode) {
   const allRows = Array.from(tableNode.querySelectorAll("tr"));
   if (!allRows.length) return [];
@@ -524,8 +646,7 @@ function serializeTable(tableNode) {
   return lines;
 }
 
-// Scans the editor for any [[...]] plain-text patterns not yet wrapped in a
-// wiki-link span, converts them in-place, and restores the cursor position.
+// Scans the editor for any [[...]] plaintext patterns not yet wrapped in a wiki-link span, converts them in-place and restores the cursor pos
 function renderWikiLinksInDOM() {
   if (!editorRef.value) return;
 
@@ -547,6 +668,7 @@ function renderWikiLinksInDOM() {
       nodes.push(n);
     }
   }
+
   if (!nodes.length) return;
 
   let restoreTo = null;
@@ -572,7 +694,7 @@ function renderWikiLinksInDOM() {
         }
         lastInserted = t;
       }
-      // Skip self-reference — leave as plain text
+      // Skip self reference keep plaintext
       if (match[1].toLowerCase() === props.file?.name?.toLowerCase()) {
         frag.appendChild(document.createTextNode(match[0]));
         lastInserted = frag.lastChild;
@@ -642,14 +764,19 @@ function handleInput() {
   const markdown = htmlToContent(html);
   lastEmittedContent = markdown;
   emit("update", markdown);
-  renderWikiLinksInDOM();
-  renderTagsInDOM();
+  if (props.livePreview) {
+    renderWikiLinksInDOM();
+    renderTagsInDOM();
+  }
   checkWikiAutocomplete();
   checkTagAutocomplete();
   updateCursorLine();
 }
 
 function handleKeydown(e) {
+  if (props.isReadOnly) {
+    return;
+  }
   // When user closes a #tag with space/enter/tab, immediately register it as a global tag.
   // Only fires when autocomplete is not open (otherwise we'd register the partial, not the selection).
   if (
@@ -733,7 +860,7 @@ function focusEditor() {
   editorRef.value?.focus();
 }
 
-// ─── Live markdown detection (Obsidian-style) ─────────────────────────────────
+// Live markdown detection
 function applyLiveMarkdown() {
   if (!editorRef.value) return;
 
@@ -758,7 +885,7 @@ function applyLiveMarkdown() {
 
   // Case 1: Convert paragraph to heading if text starts with markdown prefix
   if ((tag === "p" || tag === "div") && !block.querySelector(".wiki-link")) {
-    // 1a. Literal HTML heading tags: <h1>text</h1> — preserve the tags as markers
+    // Literal HTML heading tags preserve the tags as markers
     const htmlTagMatch = fullText.match(/^<(h[123])>([\s\S]*?)<\/\1>$/);
     if (htmlTagMatch) {
       const headingTag = htmlTagMatch[1];
@@ -792,7 +919,7 @@ function applyLiveMarkdown() {
       return;
     }
 
-    // 1b. Markdown # prefix
+    // Markdown prefix
     let targetHeading = null;
     let markerLen = 0;
 
@@ -844,7 +971,7 @@ function convertBlockToHeading(
   const heading = document.createElement(headingTag);
   const marker = "#".repeat(parseInt(headingTag[1])) + " ";
 
-  // Create md-syntax span
+  // Create m syntax span
   const mdSpan = document.createElement("span");
   mdSpan.className = "md-syntax";
   mdSpan.setAttribute("contenteditable", "false");
@@ -885,7 +1012,7 @@ function convertBlockToHeading(
     sel.removeAllRanges();
     sel.addRange(newRange);
   } catch (e) {
-    // Best effort - cursor restoration failed
+    // Best effort is cursor restoration failed
   }
 }
 
@@ -922,10 +1049,10 @@ function convertHeadingToParagraph(heading, sel) {
   }
 }
 
-// ─── Real-time inline markdown rendering ──────────────────────────────────────
+// Real time inline markdown rendering
 
 const INLINE_PATTERNS = [
-  // Bold-italic: ***text***
+  // Bold-italic
   {
     regex: /\*\*\*([^*]+)\*\*\*$/,
     open: "***",
@@ -933,7 +1060,7 @@ const INLINE_PATTERNS = [
     tag: "strong",
     innerTag: "em",
   },
-  // Bold: **text**
+  // Bold
   {
     regex: /\*\*([^*]+)\*\*$/,
     open: "**",
@@ -941,7 +1068,7 @@ const INLINE_PATTERNS = [
     tag: "strong",
     innerTag: null,
   },
-  // Italic: *text* (not inside **)
+  // Italic
   {
     regex: /(?<!\*)\*([^*\n]+)\*$/,
     open: "*",
@@ -949,7 +1076,7 @@ const INLINE_PATTERNS = [
     tag: "em",
     innerTag: null,
   },
-  // Strikethrough: ~~text~~
+  // Strikethrough
   {
     regex: /~~([^~\n]+)~~$/,
     open: "~~",
@@ -957,7 +1084,7 @@ const INLINE_PATTERNS = [
     tag: "s",
     innerTag: null,
   },
-  // Inline code: `text`
+  // Inline code
   {
     regex: /`([^\`\n]+)`$/,
     open: "`",
@@ -977,7 +1104,7 @@ function checkAndRenderInlinePattern() {
 
   if (anchorNode.nodeType !== Node.TEXT_NODE) return;
 
-  // Skip if inside an already-formatted inline element or wiki-link
+  // Skip if inside an already-formatted inline element or wiki link
   const parentTag = anchorNode.parentElement?.tagName?.toLowerCase();
   const parentClass = anchorNode.parentElement?.className || "";
   if (["strong", "em", "s", "code"].includes(parentTag)) return;
@@ -1046,9 +1173,10 @@ function checkAndRenderInlinePattern() {
   }
 }
 
-// ─── Cursor-line tracking for Obsidian-style marker visibility ─────────────────
+//  Cursor-line tracking for Obsidian-style marker visibility
 
 function updateCursorLine() {
+  if (props.isReadOnly) return;
   if (!editorRef.value) return;
 
   // Remove cursor-line from all current blocks
@@ -1076,6 +1204,9 @@ function updateCursorLine() {
 }
 
 function handleSelectionChange() {
+  if (props.isReadOnly) {
+    return;
+  }
   if (!editorRef.value) return;
   const sel = window.getSelection();
   if (
@@ -1084,7 +1215,7 @@ function handleSelectionChange() {
   ) {
     updateCursorLine();
   } else {
-    // Cursor left the editor — clear highlights
+    // Cursor left the editor clear highlights
     editorRef.value
       .querySelectorAll(".cursor-line")
       .forEach((el) => el.classList.remove("cursor-line"));
@@ -1099,13 +1230,17 @@ onUnmounted(() => {
   document.removeEventListener("selectionchange", handleSelectionChange);
 });
 
-// ─── Tag autocomplete ─────────────────────────────────────────────────────────
+// Tag autocomplete
 const tagOpen = ref(false);
 const tagPos = ref({ top: 0, left: 0 });
 const tagResults = ref([]);
 const tagSelectedIdx = ref(0);
 
 function checkTagAutocomplete() {
+  if (props.isReadOnly) {
+    closeTagAutocomplete();
+    return;
+  }
   const sel = window.getSelection();
   if (!sel?.rangeCount) {
     closeTagAutocomplete();
@@ -1184,7 +1319,7 @@ function selectTag(tagName) {
   handleInput();
 }
 
-// ─── Tag DOM rendering ────────────────────────────────────────────────────────
+// Tag DOM rendering
 function renderTagsInDOM() {
   if (!editorRef.value) return;
 
@@ -1200,7 +1335,7 @@ function renderTagsInDOM() {
   let n;
   while ((n = walker.nextNode())) {
     const parent = n.parentElement;
-    // Skip this node only if the cursor is mid-word inside a #tag — still typing
+    // Skip this node only if the cursor is mid-word inside a #tag so still typing
     if (
       n === anchorNode &&
       /#[a-zA-Z0-9]*$/.test(n.textContent.slice(0, anchorOffset))
@@ -1293,13 +1428,17 @@ function renderTagsInDOM() {
   }
 }
 
-// ─── Wiki-link autocomplete ───────────────────────────────────────────────────
+// Wiki-link autocomplete
 const wikiOpen = ref(false);
 const wikiPos = ref({ top: 0, left: 0 });
 const wikiResults = ref([]);
 const wikiSelectedIdx = ref(0);
 
 function checkWikiAutocomplete() {
+  if (props.isReadOnly) {
+    closeWikiAutocomplete();
+    return;
+  }
   const sel = window.getSelection();
   if (!sel?.rangeCount) {
     closeWikiAutocomplete();
@@ -1308,8 +1447,7 @@ function checkWikiAutocomplete() {
   const range = sel.getRangeAt(0);
   const container = range.startContainer;
 
-  // Build the text before the cursor. When cursor is in an element node (e.g.
-  // right after a contenteditable=false span), aggregate preceding text nodes.
+  // Build the text before the cursor. When cursor is in an element node (e.g. right after a contenteditable=false span), aggregate preceding text nodes.
   let textBefore = "";
   if (container.nodeType === Node.TEXT_NODE) {
     textBefore = container.textContent.slice(0, range.startOffset);
@@ -1392,6 +1530,30 @@ function selectWikiNote(note) {
 }
 
 async function handleWikiLinkClick(e) {
+  if (e.target.tagName === "A") {
+    const href = e.target.getAttribute("href");
+    if (href && href.startsWith("#")) {
+      e.preventDefault(); // Prevent default jump
+
+      const targetId = href.slice(1); // Remove the '#'
+      const targetElement = document.getElementById(targetId);
+
+      if (targetElement) {
+        // Scroll smoothly to the element
+        targetElement.scrollIntoView({ behavior: "smooth" });
+        return;
+      } else {
+        console.warn(`No element found with id="${targetId}"`);
+      }
+    }
+  }
+
+  const link = e.target.closest("a.md-link");
+  if (link) {
+    e.preventDefault();
+    window.open(link.href, "_blank", "noopener,noreferrer");
+    return;
+  }
   if (e.target.classList.contains("wiki-link")) {
     const noteName = e.target.dataset.name;
     const item = state.items.find(
@@ -1400,7 +1562,7 @@ async function handleWikiLinkClick(e) {
     if (item && item.id !== props.file?.id) {
       setActiveFile(item.id);
     } else {
-      // Note doesn't exist — create it, then immediately sync the link
+      // Note doesn't exist so create it, then immediately sync the link
       await createFile(null, noteName);
       if (props.file?.id) {
         const markdown = htmlToContent(editorRef.value?.innerHTML || "");
@@ -1425,6 +1587,9 @@ function handleEditorBlur() {
 }
 
 function applyFormat(command) {
+  if (props.isReadOnly) {
+    return;
+  }
   editorRef.value?.focus();
 
   if (command === "h1") {
@@ -1454,8 +1619,14 @@ function applyFormat(command) {
     const tableHtml = `<table><tr><th>Header</th><th>Header</th></tr><tr><td>Cell</td><td>Cell</td></tr></table>`;
     document.execCommand("insertHTML", false, tableHtml);
   } else if (command === "createLink") {
-    const url = prompt("Enter URL:");
-    if (url) document.execCommand("createLink", false, url);
+    const raw = prompt("Enter URL:");
+    if (raw) {
+      const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+      const sel = window.getSelection();
+      const label = sel?.toString() || raw;
+      const linkHtml = `<a href="${url}" class="md-link" target="_blank" rel="noopener noreferrer" title="${url}">${label}</a>`;
+      document.execCommand("insertHTML", false, linkHtml);
+    }
   } else {
     document.execCommand(command, false, null);
   }
@@ -1479,8 +1650,7 @@ function ensureMdSyntaxInHeadings() {
     }
   }
 }
-
-defineExpose({ applyFormat });
+defineExpose({ applyFormat, editorRef });
 </script>
 
 <style scoped>
@@ -1586,6 +1756,14 @@ defineExpose({ applyFormat });
   margin: 8px 0;
   color: var(--text-dim);
 }
+.editor-area :deep(pre) {
+  background: var(--surface-hover);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  overflow-x: scroll;
+}
 .editor-area :deep(code) {
   background: var(--surface-hover);
   padding: 2px 6px;
@@ -1678,7 +1856,7 @@ defineExpose({ applyFormat });
   opacity: 0.85;
 }
 
-/* Markdown syntax markers — hidden by default, shown only on the cursor's line */
+/* Markdown syntax markers hidden by default, shown only on the cursor's line */
 .editor-area :deep(.md-syntax) {
   display: none;
   color: var(--text-muted);
@@ -1770,6 +1948,16 @@ defineExpose({ applyFormat });
 .editor-area :deep(.wiki-link:hover) {
   background: color-mix(in srgb, var(--label-to) 22%, transparent);
   text-decoration: underline;
+}
+
+/* Hyperlinks in editor */
+.editor-area :deep(a.md-link) {
+  color: var(--label-to);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.editor-area :deep(a.md-link:hover) {
+  opacity: 0.8;
 }
 
 /* Wiki-link autocomplete dropdown */

@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from "vue-router";
+import { useAuth } from "../composables/useAuth.js";
 import Dashboard from "../components/Dashboard.vue";
 import GraphView from "../views/GraphView.vue";
 import CalendarView from "../views/CalendarView.vue";
@@ -41,7 +42,10 @@ function getSessionCookie() {
   }, null);
 }
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  const { initialAuthCheck } = useAuth();
+  await initialAuthCheck;
+
   const token = getSessionCookie();
 
   if (to.meta.requiresAuth && !token) {

@@ -140,13 +140,6 @@ export async function syncNoteTags(noteId, tags) {
   return res.json();
 }
 
-// WHY IS THIS IN JS ?????????????????
-// interface LinkNoteRequestBody {
-//     links: Array<{
-//         from_id: number,
-//         to_ids: number[]
-//     }>;
-// }
 export async function linkNotes(linkNoteRequestBody) {
   const { authHeaders } = useAuth();
   const res = await fetch(`${API_BASE}/notes/link`, {
@@ -154,7 +147,7 @@ export async function linkNotes(linkNoteRequestBody) {
     headers: { ...authHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(linkNoteRequestBody),
   });
-  if (!res.ok) throw new Error(`Failed to link notes ${linkNoteRequestBody}`);
+  if (!res.ok) throw new Error("Failed to link notes");
 }
 
 // This returns:
@@ -194,7 +187,7 @@ export async function deleteNoteLinks(links) {
     headers: { ...authHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(links),
   });
-  if (!res.ok) throw new Error(`Failed to get note links ${links}`);
+  if (!res.ok) throw new Error("Failed to delete note links");
 }
 export async function apiCreateFolder(parent_folder_id, title) {
   const { authHeaders } = useAuth();
@@ -206,8 +199,7 @@ export async function apiCreateFolder(parent_folder_id, title) {
       title: title,
     }),
   });
-  if (!res.ok)
-    throw new Error(`Failed to get note links ${parent_folder_id}, ${title}`);
+  if (!res.ok) throw new Error("Failed to create folder");
   return res.json();
 }
 export async function apiDeleteFolder(folder_id) {
@@ -235,11 +227,11 @@ export async function apiGetFolders() {
     method: "GET",
     headers: authHeaders(),
   });
-  if (!res.ok) throw new Error(`Failed to delete folder ${folder_id}`);
+  if (!res.ok) throw new Error("Failed to fetch folders");
   return res.json();
 }
 /*
-returns an array of this type::
+returns an array of this type:
 export type FolderChildren = {
     files: Note[];
     folders: Folder[];
@@ -254,11 +246,10 @@ export async function apiGetFolderChildren(folder_id) {
     method: "GET",
     headers: authHeaders(),
   });
-  if (!res.ok) throw new Error(`Failed to delete folder ${folder_id}`);
+  if (!res.ok) throw new Error("Failed to get folder children");
   return res.json();
 }
-window.apiGetFolderChildren = apiGetFolderChildren;
-window.apiGetFolders = apiGetFolders;
+
 
 export async function apiMoveNote(note_id, parent_folder_id) {
   const { authHeaders } = useAuth();

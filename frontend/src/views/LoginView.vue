@@ -1,5 +1,5 @@
 <template>
-  <AuthCard title="Welcome back" subtitle="Sign in to your GraphNotes account">
+  <AuthCard title="Welcome back" subtitle="Sign in to your Lapis account">
     <form class="auth-form" @submit.prevent="handleSubmit">
       <!-- Error banner -->
       <div v-if="errorMsg" class="auth-error">

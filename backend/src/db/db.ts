@@ -45,6 +45,18 @@ export class DB {
 		}
 	}
 
+	public GetUserById(id: number): Result<User | null> {
+		try {
+			const stmt = this.db.prepare(
+				"SELECT ID, NAME, EMAIL, CREATED FROM DB_USER WHERE ID = ?",
+			);
+			const row = stmt.get(id) as User | undefined;
+			return { data: row ?? null, error: null };
+		} catch (err) {
+			return { data: null, error: DBError.from(err) };
+		}
+	}
+
 	public GetUser(username: string, password: string): Result<User> {
 		try {
 			const hashedPassword = crypto

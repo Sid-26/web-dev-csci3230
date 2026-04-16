@@ -1,7 +1,5 @@
-// ── noteBackdate.ts (David) ───────────────────────────────────────────────────
 // POST /api/notes/:id/created-at
-//
-// Sets the creation date of a note. Authenticated — only affects notes owned
+// Sets the creation date of a note. Authenticated: only affects notes owned
 // by the requesting user.
 
 import express, { type Request, type Response } from "express";

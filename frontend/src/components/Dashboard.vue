@@ -10,7 +10,7 @@
       </AppButton>
     </div>
 
-    <!-- Recently visited — rendered entirely by jQuery -->
+    <!-- Recently visited rendered entirely by jQuery -->
     <div id="jq-recently-visited"></div>
   </div>
 </template>
@@ -39,7 +39,7 @@ function openNote(id) {
   router.push("/editor");
 }
 
-// ── Icon renderer: converts any ICON_MAP key → SVG string (cached) ───────────
+// Icon renderer converts any ICON_MAP key to SVG string
 const iconSvgCache = {};
 function getIconSvg(iconName) {
   if (iconSvgCache[iconName]) return iconSvgCache[iconName];
@@ -52,7 +52,7 @@ function getIconSvg(iconName) {
   return iconSvgCache[iconName];
 }
 
-// ── Inline SVG strings (Lucide-style, 24×24 viewBox) ──────────────────────────
+// Inline SVG strings 
 
 const SVG_CLOCK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 12"/></svg>`;
 
@@ -62,7 +62,7 @@ const SVG_CHEVRON_LEFT = `<svg xmlns="http://www.w3.org/2000/svg" width="16" hei
 
 const SVG_CHEVRON_RIGHT = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
-// ── jQuery renderer ────────────────────────────────────────────────────────────
+// jQuery stuff
 
 function renderRecentlyVisited() {
   const $mount = $("#jq-recently-visited");
@@ -82,7 +82,7 @@ function renderRecentlyVisited() {
   $inner.append($heading);
 
   if (recentFiles.value.length === 0 && !loading.value) {
-    // Empty state — only show after notes have finished loading
+    // Empty state is only shown after notes have finished loading
     $inner.append(
       $("<p>")
         .addClass("text-sm text-[var(--text-muted)]")
@@ -170,10 +170,8 @@ function renderRecentlyVisited() {
       $bottom.append($textGroup, $chevron);
       $card.append($iconWrap, $bottom);
 
-      // Click → open the note
       $card.on("click", () => openNote(file.id));
 
-      // Hover → reveal/hide the card chevron
       $card.hover(
         function () {
           $(this).find(".jq-card-chevron").css("opacity", "1");
@@ -186,7 +184,7 @@ function renderRecentlyVisited() {
       $scrollContainer.append($card);
     }
 
-    // Scroll event → update arrow visibility
+    // Scroll event
     $scrollContainer.on("scroll", function () {
       const el = this;
       el.scrollLeft > 0 ? $leftArrow.show() : $leftArrow.hide();
@@ -195,7 +193,7 @@ function renderRecentlyVisited() {
         : $rightArrow.hide();
     });
 
-    // Arrow clicks → smooth scroll via jQuery .animate()
+    // Arrow clicks event
     $leftArrow.on("click", function () {
       const el = $scrollContainer[0];
       $scrollContainer.animate(
@@ -223,11 +221,11 @@ function renderRecentlyVisited() {
   $mount.append($outer);
 }
 
-// ── Lifecycle ──────────────────────────────────────────────────────────────────
+// Lifecycle stuff
 
 onMounted(() => renderRecentlyVisited());
 
-// Re-render if the note list changes while the Dashboard is visible
+// Rerender if the note list changes while the Dashboard is visible
 watch(recentFiles, () => renderRecentlyVisited());
 </script>
 

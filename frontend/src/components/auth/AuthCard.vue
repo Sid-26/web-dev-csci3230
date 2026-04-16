@@ -6,7 +6,7 @@
         <div class="brand-icon">
           <component :is="brandIcon" class="w-6 h-6" />
         </div>
-        <span class="brand-name">GraphNotes</span>
+        <span class="brand-name">Lapis</span>
       </div>
 
       <!-- Title + subtitle -->

@@ -12,7 +12,7 @@ export const ApiGetNoteLinks = (
 	}
 
 	const db = DB.Instance();
-	const result = db.GetNoteLinks(req.user.ID);
+	const result = db.GetNoteLinks(Number(req.params.id));
 
 	if (result.error !== null) {
 		console.error(`error listing notes: ${result.error}`);

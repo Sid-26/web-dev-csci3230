@@ -11,7 +11,7 @@
  * Usage (local)  : node scripts/seedTestData.mjs
  * Usage (Docker) : run via the "seeder" service in docker-compose.yml
  *
- * Idempotent — safe to re-run. Skips notes that already exist.
+ * Idempotent safe to re-run. Skips notes that already exist.
  * Dates are always re-applied so re-running keeps the timeline accurate.
  */
 
@@ -20,18 +20,18 @@ const USERNAME = "testuser";
 const EMAIL = "test@example.com";
 const PASSWORD = "password123";
 
-// ─── Seed data ────────────────────────────────────────────────────────────────
+// Seed data -----------------------------------------------------------------
 //
 // 50 notes across 2022–2026 designed for demo across four axes:
 //
-//   GRAPH    — tech/work cluster (hub nodes), personal/health, books, food,
+//   GRAPH     tech/work cluster (hub nodes), personal/health, books, food,
 //              cross-cluster bridges, isolated notes, dead ends
-//   TIMELINE — evenly spread Jan 2022 → Apr 2026
-//   TAGS     — 16 unique tags, rich co-occurrence for the tag matrix
-//   LINKS    — high-degree hubs, BFS paths, dead ends, cluster navigation
+//   TIMELINE evenly spread Jan 2022 to Apr 2026
+//   TAGS     16 unique tags, rich co-occurrence for the tag matrix
+//   LINKS    high-degree hubs, BFS paths, dead ends, cluster navigation
 
 const NOTES = [
-	// ── 2022 Q1 ──────────────────────────────────────────────────────────────────
+	// 2022 Q1
 
 	{
 		title: "Starting My Reading Journey",
@@ -58,7 +58,7 @@ const NOTES = [
 		created_at: "2022-03-05",
 	},
 
-	// ── 2022 Q2 ──────────────────────────────────────────────────────────────────
+	// 2022 Q2
 
 	{
 		title: "Introduction to Databases",
@@ -85,7 +85,7 @@ const NOTES = [
 		created_at: "2022-06-12",
 	},
 
-	// ── 2022 Q3 ──────────────────────────────────────────────────────────────────
+	// 2022 Q3 
 
 	{
 		title: "Git and Version Control",
@@ -112,7 +112,7 @@ const NOTES = [
 		created_at: "2022-09-14",
 	},
 
-	// ── 2022 Q4 ──────────────────────────────────────────────────────────────────
+	//  2022 Q4 
 
 	{
 		title: "Recipe Collection",
@@ -139,7 +139,7 @@ const NOTES = [
 		created_at: "2022-12-10",
 	},
 
-	// ── 2023 Q1 ──────────────────────────────────────────────────────────────────
+	// 2023 Q1
 
 	{
 		title: "Backend Architecture",
@@ -162,7 +162,7 @@ const NOTES = [
 		created_at: "2023-02-14",
 	},
 
-	// ── 2023 Q2 ──────────────────────────────────────────────────────────────────
+	// 2023 Q2
 
 	{
 		title: "API Design Patterns",
@@ -189,7 +189,7 @@ const NOTES = [
 		created_at: "2023-06-01",
 	},
 
-	// ── 2023 Q3 ──────────────────────────────────────────────────────────────────
+	// 2023 Q3 
 
 	{
 		title: "Reading List",
@@ -216,7 +216,7 @@ const NOTES = [
 		created_at: "2023-09-05",
 	},
 
-	// ── 2023 Q4 ──────────────────────────────────────────────────────────────────
+	// 2023 Q4
 
 	{
 		title: "Running Log",
@@ -243,7 +243,7 @@ const NOTES = [
 		created_at: "2023-12-28",
 	},
 
-	// ── 2024 Q1 ──────────────────────────────────────────────────────────────────
+	// 2024 Q1 
 
 	{
 		title: "Q1 Planning Meeting",
@@ -279,7 +279,7 @@ const NOTES = [
 		created_at: "2024-03-01",
 	},
 
-	// ── 2024 Q2 ──────────────────────────────────────────────────────────────────
+	// 2024 Q2
 
 	{
 		title: "Sprint Retrospective",
@@ -306,7 +306,7 @@ const NOTES = [
 		created_at: "2024-06-20",
 	},
 
-	// ── 2024 Q3 ──────────────────────────────────────────────────────────────────
+	// 2024 Q3
 
 	{
 		title: "Data Analysis Methods",
@@ -333,7 +333,7 @@ const NOTES = [
 		created_at: "2024-09-10",
 	},
 
-	// ── 2024 Q4 ──────────────────────────────────────────────────────────────────
+	// 2024 Q4
 
 	{
 		title: "Half Marathon Training",
@@ -360,7 +360,7 @@ const NOTES = [
 		created_at: "2024-12-30",
 	},
 
-	// ── 2025 Q1 ──────────────────────────────────────────────────────────────────
+	// 2025 Q1 
 
 	{
 		title: "Machine Learning Basics",
@@ -387,7 +387,7 @@ const NOTES = [
 		created_at: "2025-03-18",
 	},
 
-	// ── 2025 Q2 ──────────────────────────────────────────────────────────────────
+	// 2025 Q2 
 
 	{
 		title: "Architecture Decision Records",
@@ -414,7 +414,7 @@ const NOTES = [
 		created_at: "2025-06-15",
 	},
 
-	// ── 2025 Q3 ──────────────────────────────────────────────────────────────────
+	// 2025 Q3
 
 	{
 		title: "Project Retrospective 2025",
@@ -437,7 +437,7 @@ const NOTES = [
 		created_at: "2025-08-28",
 	},
 
-	// ── 2025 Q4 ──────────────────────────────────────────────────────────────────
+	// 2025 Q4
 
 	{
 		title: "Open Source Contributions",
@@ -460,7 +460,7 @@ const NOTES = [
 		created_at: "2025-12-28",
 	},
 
-	// ── 2026 Q1 ──────────────────────────────────────────────────────────────────
+	// 2026 Q1
 
 	{
 		title: "Q1 Planning Meeting 2026",
@@ -495,7 +495,7 @@ const NOTES = [
 		created_at: "2026-03-15",
 	},
 
-	// ── Calendar density notes ────────────────────────────────────────────────────
+	// Calendar density notes
 	// Clustered around existing note dates to create realistic activity bursts.
 	// Minimal links so graph structure stays clean.
 
@@ -952,7 +952,7 @@ const NOTES = [
 		created_at: "2026-04-13",
 	},
 
-	// ── 2026 Q2 ──────────────────────────────────────────────────────────────────
+	// 2026 Q2
 
 	{
 		title: "Reflections on Four Years of Notes",
@@ -1042,11 +1042,11 @@ const NOTES = [
 	},
 ];
 
-// ─── Folders ─────────────────────────────────────────────────────────────────
+// Folders
 
 const FOLDERS = ["Engineering", "Work & Projects", "Health & Fitness", "Personal"];
 
-// Maps note title → folder name. Notes not listed here stay at root.
+// Maps note title to folder name. Notes not listed here stay at root.
 const NOTE_FOLDERS = {
 	// Engineering
 	"Web Development Fundamentals":     "Engineering",
@@ -1134,7 +1134,7 @@ const NOTE_FOLDERS = {
 	"Record Session: Jazz Night":       "Personal",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 function log(msg) {
 	console.log(msg);
@@ -1178,7 +1178,7 @@ async function waitForBackend(retries = 20, intervalMs = 3000) {
 	throw new Error("Backend did not become ready in time");
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+//Main 
 
 async function main() {
 	await waitForBackend();

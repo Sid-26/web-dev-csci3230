@@ -41,21 +41,6 @@ function debouncedSaveNote(id, title, content) {
     updateNote(id, title, content).catch((err) => {
       console.warn("Failed to save note:", err.message);
     });
-    // getNoteLinks(id).then((links)=>console.info(links)).catch((err)=>console.error(err));
-    // linkNotes({
-    //     links: [
-    //         {
-    //             from_id: id,
-    //             to_ids: [1, 2, 3, 4, 5]
-    //         }
-    //     ]})
-    //     .then(()=> console.info("linked note"))
-    //     .catch((err)=> console.error(err));
-    //   deleteNoteLinks({ links:
-    //       [{"from_note_id":2,"to_note_id":1},{"from_note_id":3,"to_note_id":1},{"from_note_id":4,"to_note_id":1},{"from_note_id":5,"to_note_id":1},{"from_note_id":6,"to_note_id":1},{"from_note_id":7,"to_note_id":1}]
-    //   })
-    //     .then(()=> console.info("links deleted"))
-    //     .catch((err)=> console.error(err));
     syncNoteLinks(id, content).catch((err) => {
       console.warn("Failed to sync note links:", err.message);
     });
@@ -387,7 +372,7 @@ export function useEditorStore() {
       (i) => String(i.id) === String(itemId) && i.type === itemType,
     );
     if (!item) return;
-    // No-op if already in the target parent
+    // No op if already in the target parent
     if (String(item.parentId) === String(newParentId)) return;
     // Cycle guard: reject if moving a folder into itself or a descendant
     if (itemType === "folder" && newParentId !== null) {
@@ -579,7 +564,7 @@ export function useEditorStore() {
         const firstFile = state.items.find((i) => i.type === "file");
         if (firstFile) await setActiveFile(firstFile.id);
       }
-      preloadNoteTags(); // fire-and-forget: populates tag cache for tag: search
+      preloadNoteTags(); // fire and forget: populates tag cache for tag search
     } catch (err) {
       console.warn(
         "Failed to load notes from backend, using local data:",

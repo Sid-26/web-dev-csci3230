@@ -1,11 +1,9 @@
-// ── hybridSearch.ts (David) ───────────────────────────────────────────────────
 // POST /api/search/hybrid
-//
 // Full-text search using SQLite FTS5 with BM25 ranking and Porter stemming.
 // Each query term is prefix-matched (guitar* matches guitars, guitarist).
 // Field weights: title=10×, content=1×.
-// BM25 returns negative values — most negative = best match.
-// Scores are normalised to 0–1 before returning to the frontend.
+// BM25 returns negative values most negative = best match.
+// Scores are normalised to 0-1 before returning to the frontend.
 
 import express, { type Request, type Response } from "express";
 import { DB } from "../db/db.js";
@@ -31,7 +29,7 @@ router.post("/search/hybrid", (req: Request, res: Response) => {
 		return;
 	}
 
-	// Prefix-match each term — guitar* matches guitars, guitarist, etc.
+	// Prefix-match each term guitar* matches guitars, guitarist, etc.
 	const ftsQuery = terms.map((t) => `${t}*`).join(" ");
 
 	try {
@@ -59,8 +57,8 @@ router.post("/search/hybrid", (req: Request, res: Response) => {
 			return;
 		}
 
-		// BM25 returns negative values — most negative = best match.
-		// Normalise to 0–1 so the frontend can display a "% match".
+		// BM25 returns negative values most negative = best match.
+		// Normalise so the frontend can display a "% match".
 		const scores = rows.map((r) => r.rank);
 		const minScore = Math.min(...scores);
 		const maxScore = Math.max(...scores);

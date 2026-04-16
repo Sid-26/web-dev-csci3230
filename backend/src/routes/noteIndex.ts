@@ -1,16 +1,13 @@
-// ── noteIndex.ts (David) ─────────────────────────────────────────────────────
-// POST   /api/notes/:id/index  — upsert a note into the notes_fts table
-// DELETE /api/notes/:id/index  — remove a note from the notes_fts table
-//
-// FTS5 virtual tables do not support UPDATE or INSERT OR REPLACE, so the
-// upsert pattern is delete-then-insert wrapped in a transaction.
+// POST   /api/notes/:id/index upsert a note into the notes_fts table
+// DELETE /api/notes/:id/index remove a note from the notes_fts table
+// FTS5 virtual tables do not support UPDATE or INSERT OR REPLACE, so the pattern is delete-then-insert wrapped in a transaction.
 
 import express, { type Request, type Response } from "express";
 import { DB } from "../db/db.js";
 
 const router = express.Router();
 
-// ── Upsert (delete-then-insert, since FTS5 has no UPDATE) ────────────────────
+// delete then insert, since FTS5 has no UPDATE
 router.post("/notes/:id/index", (req: Request, res: Response) => {
 	const { id } = req.params;
 	const { title = "", content = "" } = req.body as {
@@ -36,7 +33,7 @@ router.post("/notes/:id/index", (req: Request, res: Response) => {
 	}
 });
 
-// ── Delete from index ────────────────────────────────────────────────────────
+// delete from index
 router.delete("/notes/:id/index", (req: Request, res: Response) => {
 	const { id } = req.params;
 	const db = DB.Instance().DB();

@@ -148,10 +148,6 @@
               }
             "
           />
-          <!-- <EditorPreview -->
-          <!--   v-if="viewMode !== 'edit'" -->
-          <!--   :content="activeFile?.content || ''" -->
-          <!-- /> -->
 
           <!-- Empty state when no file and in preview mode -->
           <div v-if="viewMode === 'preview' && !activeFile" class="empty-state">

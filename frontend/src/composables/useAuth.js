@@ -4,7 +4,7 @@ import { useEditorStore } from "./useEditorStore.js";
 
 const USER_KEY = "auth_user";
 
-// ─── Cookie helpers ───────────────────────────────────────────────────────────
+// Cookie helpers, its fun
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -35,7 +35,7 @@ const initialAuthCheck = new Promise((resolve) => {
 export function useAuth() {
   const isAuthenticated = computed(() => !!token.value);
 
-  /** Attach the bearer token to a headers object — use this in api.js calls. */
+  /** Attach the bearer token to a headers object use this in api.js calls. */
   function authHeaders() {
     if (!token.value) return {};
     return { Authorization: `Bearer ${token.value}` };
@@ -43,7 +43,7 @@ export function useAuth() {
 
   /**
    * Register then automatically log the user in.
-   * Throws on error — caller should catch and display the message.
+   * Throws on error caller should catch and display the message.
    */
   async function register(username, email, password) {
     await authService.register(username, email, password);
@@ -87,7 +87,7 @@ export function useAuth() {
       user.value = data;
       localStorage.setItem(USER_KEY, JSON.stringify(data));
     } catch {
-      // Token is invalid or expired — clear session
+      // Token is invalid or expired clear session
       logout();
     } finally {
       _initialCheckDone();

@@ -23,8 +23,7 @@
         :class="{ rotated: expanded }"
       />
       <span v-else class="w-3 h-3 inline-block shrink-0" />
-
-      <!-- Icon — clickable on files to open picker -->
+      <!-- Icon whic clickable on files to open picker -->
       <button
         v-if="item.type === 'file'"
         class="icon-btn"
@@ -35,7 +34,7 @@
       </button>
       <component v-else :is="folderIcon" class="w-4 h-4 item-icon shrink-0" />
 
-      <!-- Name / rename input -->
+      <!-- Name and rename input -->
       <input
         v-if="isRenaming"
         ref="renameInput"

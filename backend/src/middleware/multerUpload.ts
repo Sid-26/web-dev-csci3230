@@ -58,7 +58,7 @@ const MAGIC_BYTES: Record<string, number[]> = {
 
 function fileContentMatchesExtension(filePath: string, ext: string): boolean {
 	const expected = MAGIC_BYTES[ext];
-	if (!expected) return true; // .md and other text formats — nothing to check
+	if (!expected) return true; // .md and other text formats nothing to check
 
 	const fd = fs.openSync(filePath, "r");
 	const buf = Buffer.alloc(expected.length);

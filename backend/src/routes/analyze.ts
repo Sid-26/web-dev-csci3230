@@ -1,9 +1,5 @@
-// ── analyze.ts (David) ────────────────────────────────────────────────────────
 // POST /api/notes/:id/analyze
-//
-// Accepts a note's content and existing tags, calls Gemini to produce:
-//   - tags: string[]  (3-6 tags selected from the available tags list)
-//
+// Accepts a note's content and existing tags, calls Gemini to produce: tags: string[]  (3-6 tags selected from the available tags list)
 // Requires GEMINI_API_KEY in the environment.
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -16,7 +12,7 @@ router.post("/notes/:id/analyze", async (req: Request, res: Response) => {
 		const { id } = req.params;
 		const { content, tags: existingTags = [] } = req.body;
 
-		// ── Validation ────────────────────────────────────────────────────────
+		// Validation
 		if (!content || (content as string).trim().length === 0) {
 			return res.status(400).json({ error: "Note content is empty" });
 		}
@@ -29,7 +25,7 @@ router.post("/notes/:id/analyze", async (req: Request, res: Response) => {
 
 		const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-		// ── Tag extraction via gemini-2.5-flash ───────────────────────────────
+		// Tag extraction via gemini-2.5-flash
 		const tagList = (existingTags as string[]).join(", ");
 
 		const prompt = `

@@ -4,7 +4,7 @@ import { useEditorStore } from "./useEditorStore.js";
 
 const USER_KEY = "auth_user";
 
-// Cookie helpers, its fun
+// Cookie helpers, it's fun
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -24,7 +24,13 @@ function deleteCookie(name) {
 
 // Module-level singleton so auth state is shared across all components
 const token = ref(getCookie("session") || null);
-const user = ref(JSON.parse(localStorage.getItem(USER_KEY) || "null"));
+let storedUser = null;
+try {
+  storedUser = JSON.parse(localStorage.getItem(USER_KEY) || "null");
+} catch {
+  localStorage.removeItem(USER_KEY);
+}
+const user = ref(storedUser);
 
 // Resolved once the initial /whoami check finishes
 let _initialCheckDone = null;
@@ -42,8 +48,8 @@ export function useAuth() {
   }
 
   /**
-   * Register then automatically log the user in.
-   * Throws on error caller should catch and display the message.
+   * Register a new user account.
+   * Throws on error — caller should catch and display the message.
    */
   async function register(username, email, password) {
     await authService.register(username, email, password);

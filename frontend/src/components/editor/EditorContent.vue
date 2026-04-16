@@ -646,7 +646,7 @@ function serializeTable(tableNode) {
   return lines;
 }
 
-// Scans the editor for any [[...]] plaintext patterns not yet wrapped in a wik-link span, converts them in-place and restores the cursor pos
+// Scans the editor for any [[...]] plaintext patterns not yet wrapped in a wiki-link span, converts them in-place and restores the cursor pos
 function renderWikiLinksInDOM() {
   if (!editorRef.value) return;
 
@@ -1104,7 +1104,7 @@ function checkAndRenderInlinePattern() {
 
   if (anchorNode.nodeType !== Node.TEXT_NODE) return;
 
-  // Skip if inside an already-formatted inline element or wiki ink
+  // Skip if inside an already-formatted inline element or wiki link
   const parentTag = anchorNode.parentElement?.tagName?.toLowerCase();
   const parentClass = anchorNode.parentElement?.className || "";
   if (["strong", "em", "s", "code"].includes(parentTag)) return;
@@ -1530,10 +1530,10 @@ function selectWikiNote(note) {
 }
 
 async function handleWikiLinkClick(e) {
-  if (event.target.tagName === "A") {
-    const href = event.target.getAttribute("href");
+  if (e.target.tagName === "A") {
+    const href = e.target.getAttribute("href");
     if (href && href.startsWith("#")) {
-      event.preventDefault(); // Prevent default jump
+      e.preventDefault(); // Prevent default jump
 
       const targetId = href.slice(1); // Remove the '#'
       const targetElement = document.getElementById(targetId);

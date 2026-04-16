@@ -75,6 +75,7 @@ function computeStreak() {
   for (let i = 0; i < dates.length; i++) {
     if (i === 0) {
       curr = 1;
+      maxStreak = Math.max(maxStreak, curr);
       continue;
     }
     const diff = (new Date(dates[i]) - new Date(dates[i - 1])) / 86400000;
